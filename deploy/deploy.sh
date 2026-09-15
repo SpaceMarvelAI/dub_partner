@@ -70,7 +70,16 @@ step "[2/5] Running test suite (apps/web)"
 # ---- 3. package source + build/push via CodeBuild ----
 step "[3/5] Packaging source"
 TMP_ZIP="$(mktemp -t dub-source-XXXX).zip"
-git archive --format=zip -o "$TMP_ZIP" HEAD
+# NOTE: this deliberately packages the current WORKING TREE, not `git archive
+# HEAD` (committed-only). This repo has an external process that auto-commits
+# at unpredictable times, so HEAD can lag behind what's actually on disk by
+# the time this runs — a build from HEAD silently shipped stale code that way
+# once already. `git ls-files --cached --others --exclude-standard` lists
+# every tracked file (read at its current on-disk content, uncommitted edits
+# included) plus untracked-but-not-gitignored files — .env is gitignored, so
+# this is as safe against secret leaks as `git archive` was.
+rm -f "$TMP_ZIP"
+git ls-files -z --cached --others --exclude-standard | xargs -0 zip -q "$TMP_ZIP"
 # deploy/Dockerfile, .dockerignore, buildspec.yml are tracked in the repo but
 # CodeBuild's source.zip needs them at the ZIP ROOT, not under deploy/.
 TMP_INJECT="$(mktemp -d)"
