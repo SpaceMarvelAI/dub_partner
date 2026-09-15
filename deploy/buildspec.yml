@@ -1,0 +1,34 @@
+version: 0.2
+
+# Builds the web app's Docker image and pushes it to ECR. Runs in AWS
+# CodeBuild instead of locally because this monorepo's production build
+# (hundreds of routes) reliably OOMs on an 8GB dev machine even with build
+# parallelism capped — CodeBuild's larger compute types give it real headroom.
+
+env:
+  variables:
+    AWS_ACCOUNT_ID: "348881530370"
+    AWS_REGION: "ap-south-1"
+    ECR_REPO: "affiliate"
+
+phases:
+  pre_build:
+    commands:
+      # Each phase below runs in its own shell — a plain shell variable set
+      # here would NOT survive into build/post_build, so IMAGE_URI is
+      # recomputed at the top of every phase that needs it instead.
+      - echo "Logging in to ECR"
+      - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+  build:
+    commands:
+      # Only :latest — $CODEBUILD_RESOLVED_SOURCE_VERSION is empty for an S3
+      # source (no VCS commit to resolve), which produced an invalid
+      # trailing-colon tag and failed the whole `docker build` up front.
+      - IMAGE_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO"
+      - echo "Building image ($IMAGE_URI:latest)"
+      - docker build --platform linux/amd64 -t "$IMAGE_URI:latest" -f Dockerfile .
+  post_build:
+    commands:
+      - IMAGE_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO"
+      - echo "Pushing image"
+      - docker push "$IMAGE_URI:latest"

@@ -1,0 +1,24 @@
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+.git
+.github
+graft
+graphify-out
+.playwright-mcp
+.claude
+**/*.log
+**/.env
+**/.env.*
+!**/.env.example
+**/*.md
+
+# graft context graph (local cache, no need in image)
+graft/
+
+# Claude Code local config
+.claude/
+
+# Claude Code project instructions (local only)
+CLAUDE.md
