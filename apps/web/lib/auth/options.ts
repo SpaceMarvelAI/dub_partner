@@ -438,11 +438,17 @@ export const authOptions: NextAuthOptions = {
             (!userExists.image || !isStored(userExists.image)) &&
             profilePic
           ) {
-            const { url } = await storage.upload({
-              key: `avatars/${userExists.id}`,
-              body: profilePic,
-            });
-            newAvatar = url;
+            // Storage (R2/S3) is optional — don't block sign-in over an
+            // avatar sync failure when it isn't configured.
+            try {
+              const { url } = await storage.upload({
+                key: `avatars/${userExists.id}`,
+                body: profilePic,
+              });
+              newAvatar = url;
+            } catch (error) {
+              console.error("Failed to sync avatar from OAuth profile", error);
+            }
           }
           await prisma.user.update({
             where: { email: user.email },
