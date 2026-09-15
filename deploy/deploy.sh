@@ -124,18 +124,21 @@ ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new "${EC2_USER}@${EC2_HOST}" 
 REMOTE
 
 # ---- 5. health check ----
-# Hits /api/health specifically: it's the one route that bypasses the
-# hostname-routing middleware (which needs a real Host header this plain
-# IP:port request doesn't send), so it reflects the app's real status
-# instead of always failing regardless of deploy outcome.
+# Goes through the real public domain (DNS -> ALB -> target group -> app),
+# not http://$EC2_HOST:3000 directly — affiliate-ec2-sg only allows port
+# 3000 inbound from the ALB's security group, so a direct check from an
+# external machine (anyone actually running this script) always times out
+# regardless of whether the deploy succeeded. This also verifies the whole
+# path real users hit, not just "is the container up".
+LIVE_URL="https://partners.spacemarvel.com"
 step "[5/5] Health check"
 sleep 5
-if curl -sf -o /dev/null "http://${EC2_HOST}:3000/api/health"; then
+if curl -sf -o /dev/null -m 15 "${LIVE_URL}/api/health"; then
   echo
-  echo -e "\033[1;32m✅ DEPLOYMENT SUCCESSFUL — live at: https://partners.spacemarvel.com\033[0m"
+  echo -e "\033[1;32m✅ DEPLOYMENT SUCCESSFUL — live at: ${LIVE_URL}\033[0m"
 else
   echo
-  echo -e "\033[1;31m✗ DEPLOYMENT FAILED — app did not respond on ${EC2_HOST}:3000/api/health\033[0m"
+  echo -e "\033[1;31m✗ DEPLOYMENT FAILED — ${LIVE_URL}/api/health did not respond\033[0m"
   echo "  Check: ssh -i \"$SSH_KEY\" ${EC2_USER}@${EC2_HOST} 'docker logs ${CONTAINER_NAME}'"
   exit 1
 fi
