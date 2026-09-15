@@ -19,7 +19,7 @@ const secretMap: Record<StripeMode, string | undefined> = {
 export const stripeAppClient = ({ mode }: { mode?: StripeMode }) => {
   const appSecretKey = secretMap[mode ?? "live"];
 
-  return new Stripe(appSecretKey!, {
+  return new Stripe(appSecretKey || "sk_test_placeholder", {
     apiVersion: "2025-05-28.basil",
     appInfo: {
       name: "Dub.co",
