@@ -36,6 +36,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # project runs BUILD_GENERAL1_LARGE (15GB RAM) — 4096 still OOM'd, so this
 # leaves ~3GB headroom below the container ceiling instead of ~11GB unused.
 ENV NODE_OPTIONS=--max-old-space-size=12288
+# NEXT_PUBLIC_* vars are inlined into the JS bundle at build time, not read
+# at container runtime — this must be set here, not just in the prod .env,
+# so isAppHostname()/APP_DOMAIN resolve to this self-hosted domain instead
+# of falling back to Dub's own app.dub.co/localhost:8888.
+ENV NEXT_PUBLIC_APP_DOMAIN=https://partners.spacemarvel.com
 RUN pnpm --filter web prisma:generate
 # workspace packages (e.g. @dub/embed-react) must be built before web —
 # `pnpm --filter web build` only runs web's own script, it doesn't build

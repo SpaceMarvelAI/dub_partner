@@ -20,9 +20,11 @@ AWS_ACCOUNT_ID="348881530370"
 ECR_REPO="affiliate"
 CODEBUILD_PROJECT="affiliate-build"
 S3_SOURCE_BUCKET="affiliate-codebuild-source-348881530370"
-EC2_HOST="${EC2_HOST:?Set EC2_HOST to the instance's IP/DNS, e.g. EC2_HOST=1.2.3.4 ./deploy/deploy.sh}"
+# Elastic IP — stable across instance stop/start, no export needed for the
+# normal case. Override with EC2_HOST=... if targeting a different instance.
+EC2_HOST="${EC2_HOST:-13.205.153.233}"
 EC2_USER="ec2-user"
-SSH_KEY="${SSH_KEY:-$HOME/.ssh/affiliate-ec2-key.pem}"
+SSH_KEY="${SSH_KEY:-$HOME/.ssh/dub-partner-deploy-key.pem}"
 CONTAINER_NAME="affiliate-app"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -39,8 +41,31 @@ if ! pnpm audit --audit-level=high; then
 fi
 
 # ---- 2. unit tests (hard fail) — needs your local docker-compose DB running ----
+# Excludes tests that import tests/utils/integration* — those need a live
+# deployed server + real API tokens (E2E_BASE_URL, E2E_TOKEN, ...) and can
+# never pass in a local pre-deploy gate. Computed at run-time (not a static
+# list) so it stays correct as the test suite evolves.
 step "[2/5] Running test suite (apps/web)"
-(cd apps/web && pnpm test)
+(
+  cd apps/web
+  pnpm prisma:generate
+  # NOTE: vitest's --exclude only accumulates across repeats in the
+  # --exclude="pattern" (equals-sign) form; --exclude "pattern" (space-
+  # separated) silently drops all but one occurrence. Patterns also must be
+  # relative to vitest.config.ts's `dir: "./tests"` (no "tests/" prefix) and
+  # need a "**/" prefix, or they silently match nothing.
+  EXCLUDE_ARGS=()
+  while IFS= read -r f; do
+    EXCLUDE_ARGS+=(--exclude="**/${f#tests/}")
+  done < <(grep -rl "utils/integration" tests --include="*.test.ts")
+  # webhooks test publishes via real QStash, whose callback URL is built from
+  # APP_DOMAIN_WITH_NGROK — without a real ngrok tunnel this resolves to
+  # localhost, which QStash's cloud service can't reach, so it fails
+  # synchronously. Needs NEXT_PUBLIC_NGROK_URL set to run for real.
+  EXCLUDE_ARGS+=(--exclude="**/webhooks/index.test.ts")
+  echo "    (skipping ${#EXCLUDE_ARGS[@]} tests that need live external infra: E2E server+tokens, or an ngrok tunnel)"
+  CI=true pnpm exec dotenv-flow -e .env -- vitest run -no-file-parallelism --bail=1 "${EXCLUDE_ARGS[@]}"
+)
 
 # ---- 3. package source + build/push via CodeBuild ----
 step "[3/5] Packaging source"
