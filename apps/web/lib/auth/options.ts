@@ -633,10 +633,20 @@ export const authOptions: NextAuthOptions = {
       if (currentImage && !isStored(currentImage)) {
         waitUntil(
           (async () => {
-            const { url } = await storage.upload({
-              key: `avatars/${message.user.id}`,
-              body: currentImage,
-            });
+            // Storage (R2/S3) is optional — an uncaught rejection here
+            // becomes an unhandled rejection in the request lifecycle
+            // (this runs inside the same signIn event as the request),
+            // which can destabilize the process. Never let it propagate.
+            let url: string;
+            try {
+              ({ url } = await storage.upload({
+                key: `avatars/${message.user.id}`,
+                body: currentImage,
+              }));
+            } catch (error) {
+              console.error("Failed to back up user avatar to storage", error);
+              return;
+            }
             await prisma.user.update({
               where: {
                 id: message.user.id,
