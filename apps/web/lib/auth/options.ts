@@ -35,6 +35,16 @@ import { SSO_LOGIN_PROGRAMS } from "./sso-login-programs";
 import { trackDubLead } from "./track-dub-lead";
 
 const VERCEL_DEPLOYMENT = !!process.env.VERCEL_URL;
+// next-auth/jwt's getToken() (used by middleware to read the session) decides
+// the cookie name by checking NEXTAUTH_URL.startsWith("https://") — NOT
+// VERCEL_DEPLOYMENT. On a self-hosted HTTPS deployment (e.g. EC2 behind an
+// ALB), VERCEL_DEPLOYMENT is false but the site is still https, so the two
+// checks disagreed: this config set the plain-named cookie while getToken()
+// looked for the __Secure- prefixed one, so middleware could never see an
+// authenticated session — login would succeed but bounce straight back to
+// /login. Must stay consistent with getToken()'s check.
+const IS_SECURE_DEPLOYMENT =
+  VERCEL_DEPLOYMENT || !!process.env.NEXTAUTH_URL?.startsWith("https://");
 
 const CustomPrismaAdapter = (p: PrismaClient) => {
   return {
@@ -377,14 +387,14 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   cookies: {
     sessionToken: {
-      name: `${VERCEL_DEPLOYMENT ? "__Secure-" : ""}next-auth.session-token`,
+      name: `${IS_SECURE_DEPLOYMENT ? "__Secure-" : ""}next-auth.session-token`,
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
         // When working on localhost, the cookie domain must be omitted entirely (https://stackoverflow.com/a/1188145)
         domain: VERCEL_DEPLOYMENT ? ".dub.co" : undefined,
-        secure: VERCEL_DEPLOYMENT,
+        secure: IS_SECURE_DEPLOYMENT,
       },
     },
   },
