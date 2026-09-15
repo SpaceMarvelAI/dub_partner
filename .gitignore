@@ -52,3 +52,4 @@ playwright-report/
 test-results/
 blob-report/
 .pnpm-store
+.gstack/
