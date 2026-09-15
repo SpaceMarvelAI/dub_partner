@@ -16,7 +16,7 @@ export default function RootLayout({
       lang="en"
       className={cn(satoshi.variable, inter.variable, geistMono.variable)}
     >
-      <body>
+      <body suppressHydrationWarning>
         <RootProviders>{children}</RootProviders>
 
         <Script id="set-theme" strategy="beforeInteractive">
