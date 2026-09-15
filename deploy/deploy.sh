@@ -108,14 +108,14 @@ echo "    ✓ build succeeded, image pushed to ${IMAGE_URI}:latest"
 
 # ---- 4. deploy to EC2 ----
 step "[4/5] Deploying to ${EC2_HOST}"
+# NOTE: this project has no prisma/migrations directory — schema changes are
+# applied via `pnpm prisma:push`, a deliberate manual step reviewed by a
+# human (it can be destructive), never auto-run here against production.
 ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new "${EC2_USER}@${EC2_HOST}" bash -s <<REMOTE
   set -euo pipefail
   aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
   docker pull ${IMAGE_URI}:latest
-
-  # run pending migrations against the real DB before swapping the container
-  docker run --rm --env-file /home/${EC2_USER}/.env ${IMAGE_URI}:latest \
-    sh -c "cd /app/apps/web && pnpm exec prisma migrate deploy --schema=./prisma/schema"
+  docker image prune -af
 
   docker stop ${CONTAINER_NAME} 2>/dev/null || true
   docker rm ${CONTAINER_NAME} 2>/dev/null || true
@@ -124,14 +124,18 @@ ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new "${EC2_USER}@${EC2_HOST}" 
 REMOTE
 
 # ---- 5. health check ----
+# Hits /api/health specifically: it's the one route that bypasses the
+# hostname-routing middleware (which needs a real Host header this plain
+# IP:port request doesn't send), so it reflects the app's real status
+# instead of always failing regardless of deploy outcome.
 step "[5/5] Health check"
 sleep 5
-if curl -sf -o /dev/null "http://${EC2_HOST}:3000/"; then
-  echo "    ✓ app is responding on ${EC2_HOST}:3000"
+if curl -sf -o /dev/null "http://${EC2_HOST}:3000/api/health"; then
+  echo
+  echo -e "\033[1;32m✅ DEPLOYMENT SUCCESSFUL — live at: https://partners.spacemarvel.com\033[0m"
 else
-  echo "    ⚠ app did not respond on port 3000 — check 'docker logs ${CONTAINER_NAME}' on the instance"
+  echo
+  echo -e "\033[1;31m✗ DEPLOYMENT FAILED — app did not respond on ${EC2_HOST}:3000/api/health\033[0m"
+  echo "  Check: ssh -i \"$SSH_KEY\" ${EC2_USER}@${EC2_HOST} 'docker logs ${CONTAINER_NAME}'"
   exit 1
 fi
-
-echo
-echo "✅ Deploy complete"
