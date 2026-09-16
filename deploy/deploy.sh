@@ -119,7 +119,12 @@ ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new "${EC2_USER}@${EC2_HOST}" 
 
   docker stop ${CONTAINER_NAME} 2>/dev/null || true
   docker rm ${CONTAINER_NAME} 2>/dev/null || true
+  # --network ps-net: connects to the ps-http-proxy sidecar (ghcr.io/
+  # mattrobenolt/ps-http-sim, bridges PLANETSCALE_DATABASE_URL to the real
+  # RDS instance) — prismaEdge and lib/planetscale/* need this reachable
+  # or every edge/middleware DB call fails with ERR_SSL_WRONG_VERSION_NUMBER.
   docker run -d --name ${CONTAINER_NAME} --restart unless-stopped \
+    --network ps-net \
     -p 3000:3000 --env-file /home/${EC2_USER}/.env ${IMAGE_URI}:latest
 REMOTE
 
