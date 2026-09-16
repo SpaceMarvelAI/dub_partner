@@ -5,62 +5,70 @@ export async function getDefaultPartnerId(user: UserProps) {
   let defaultPartnerId = user?.defaultPartnerId;
 
   if (!defaultPartnerId) {
-    const refreshedUser = await prismaEdge.user.findUnique({
-      where: {
-        id: user.id,
-      },
-      select: {
-        defaultPartnerId: true,
-        partners: {
-          select: {
-            partnerId: true,
-          },
-          take: 1,
-        },
-      },
-    });
-
-    defaultPartnerId =
-      refreshedUser?.defaultPartnerId ||
-      refreshedUser?.partners[0]?.partnerId ||
-      undefined;
-
-    // if no default partner id, try and see if there is a partner profile with the same email
-    // if there is, link the user to the partner profile and set it as the user's default partner id
-    if (!defaultPartnerId) {
-      console.log(
-        "User doesn't have a default partner id, trying to find a partner with the same email",
-      );
-
-      const partner = await prismaEdge.partner.findUnique({
+    // prismaEdge needs a real PlanetScale-compatible HTTP endpoint
+    // (PLANETSCALE_DATABASE_URL); without one, degrade the same as
+    // "no default partner found" instead of crashing every request
+    // here. Skipping the read also skips the write below, safely.
+    try {
+      const refreshedUser = await prismaEdge.user.findUnique({
         where: {
-          email: user.email,
+          id: user.id,
+        },
+        select: {
+          defaultPartnerId: true,
+          partners: {
+            select: {
+              partnerId: true,
+            },
+            take: 1,
+          },
         },
       });
 
-      // if there is already a partner profile with the same email + has a country assigned
-      // link the user to the partner profile
-      // else they need to either create a new partner profile or set their country
-      if (partner?.country) {
-        await prismaEdge.user.update({
+      defaultPartnerId =
+        refreshedUser?.defaultPartnerId ||
+        refreshedUser?.partners[0]?.partnerId ||
+        undefined;
+
+      // if no default partner id, try and see if there is a partner profile with the same email
+      // if there is, link the user to the partner profile and set it as the user's default partner id
+      if (!defaultPartnerId) {
+        console.log(
+          "User doesn't have a default partner id, trying to find a partner with the same email",
+        );
+
+        const partner = await prismaEdge.partner.findUnique({
           where: {
-            id: user.id,
+            email: user.email,
           },
-          data: {
-            defaultPartnerId: partner.id,
-            partners: {
-              create: {
-                partnerId: partner.id,
-                role: "owner",
-                notificationPreferences: {
-                  create: {},
+        });
+
+        // if there is already a partner profile with the same email + has a country assigned
+        // link the user to the partner profile
+        // else they need to either create a new partner profile or set their country
+        if (partner?.country) {
+          await prismaEdge.user.update({
+            where: {
+              id: user.id,
+            },
+            data: {
+              defaultPartnerId: partner.id,
+              partners: {
+                create: {
+                  partnerId: partner.id,
+                  role: "owner",
+                  notificationPreferences: {
+                    create: {},
+                  },
                 },
               },
             },
-          },
-        });
-        defaultPartnerId = partner.id;
+          });
+          defaultPartnerId = partner.id;
+        }
       }
+    } catch (error) {
+      console.error("Failed to look up default partner", error);
     }
   }
 

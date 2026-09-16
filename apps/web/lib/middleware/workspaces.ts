@@ -45,19 +45,27 @@ export async function WorkspacesMiddleware(req: NextRequest, user: UserProps) {
     );
   }
 
-  // Redirect user to the accept invite page if they have a pending invite
-  const projectInvite = await prismaEdge.projectInvite.findFirst({
-    where: {
-      email: user.email,
-    },
-    select: {
-      project: {
-        select: {
-          slug: true,
+  // Redirect user to the accept invite page if they have a pending invite.
+  // prismaEdge needs a real PlanetScale-compatible HTTP endpoint
+  // (PLANETSCALE_DATABASE_URL); without one, degrade the same as "no
+  // invite found" instead of crashing every request here.
+  let projectInvite: { project: { slug: string } } | null = null;
+  try {
+    projectInvite = await prismaEdge.projectInvite.findFirst({
+      where: {
+        email: user.email,
+      },
+      select: {
+        project: {
+          select: {
+            slug: true,
+          },
         },
       },
-    },
-  });
+    });
+  } catch (error) {
+    console.error("Failed to look up pending project invite", error);
+  }
 
   if (projectInvite) {
     return NextResponse.redirect(

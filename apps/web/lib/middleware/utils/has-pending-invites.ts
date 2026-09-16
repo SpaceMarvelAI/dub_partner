@@ -16,14 +16,23 @@ export async function hasPendingInvites({
     return true;
   }
 
-  const pendingInvites = await prismaEdge.projectInvite.count({
-    where: {
-      email: user.email,
-      expires: {
-        gte: new Date(),
+  // prismaEdge needs a real PlanetScale-compatible HTTP endpoint
+  // (PLANETSCALE_DATABASE_URL); without one, degrade to "no pending
+  // invites" instead of crashing every request through this middleware.
+  let pendingInvites: number;
+  try {
+    pendingInvites = await prismaEdge.projectInvite.count({
+      where: {
+        email: user.email,
+        expires: {
+          gte: new Date(),
+        },
       },
-    },
-  });
+    });
+  } catch (error) {
+    console.error("Failed to check pending invites", error);
+    return false;
+  }
 
   return pendingInvites > 0;
 }
