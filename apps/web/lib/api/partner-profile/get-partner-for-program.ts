@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { toCentsNumber } from "@dub/utils";
+import { getOrCreateReferralCode } from "../partners/get-or-create-referral-code";
 
 export async function getPartnerForProgram({
   partnerId,
@@ -53,9 +54,15 @@ export async function getPartnerForProgram({
 
   const { partner, links, applicationEvent, ...programEnrollment } = data;
 
+  const referralCode = await getOrCreateReferralCode({
+    programEnrollment,
+    partner,
+  });
+
   return {
     ...partner,
     ...programEnrollment,
+    referralCode,
     applicationEvent,
     netRevenue:
       toCentsNumber(programEnrollment.totalSaleAmount ?? 0) -

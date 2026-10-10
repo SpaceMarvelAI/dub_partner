@@ -109,6 +109,7 @@ model ProgramEnrollment {
   partnerId        String
   programId        String
   tenantId         String?
+  referralCode     String?                 @db.VarChar(100) // bare code a partner can hand out for attribution without a link click (e.g. via your own app's "enter referral code" flow)
   groupId          String?
   applicationId    String?                 @unique
   clickRewardId    String?
@@ -174,6 +175,7 @@ model ProgramEnrollment {
   // unique constraints
   @@unique([partnerId, programId])
   @@unique([tenantId, programId])
+  @@unique([programId, referralCode])
   // indexes for sorting partners
   @@index([programId, status, createdAt])
   @@index([programId, status, totalClicks])

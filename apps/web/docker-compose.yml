@@ -9,9 +9,14 @@ services:
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
     command:
       [
-        "--max_connections=1000",
+        # ponytail: 1000 connections + default buffer pool is server-grade
+        # sizing on a laptop. Local dev never has more than a handful of
+        # connections; raise these back if you add load testing.
+        "--max_connections=50",
+        "--innodb-buffer-pool-size=128M",
         "--default-authentication-plugin=mysql_native_password",
       ]
+    mem_limit: 512m
     ports:
       - 3306:3306
     volumes:
@@ -28,6 +33,7 @@ services:
       ]
     depends_on:
       - ps-mysql
+    mem_limit: 128m
     ports:
       - 3900:3900
     links:
@@ -35,12 +41,14 @@ services:
 
   mailhog:
     image: "mailhog/mailhog:latest"
+    mem_limit: 64m
     ports:
       - "1025:1025"
       - "8025:8025"
 
   redis:
     image: redis:7-alpine
+    mem_limit: 128m
     ports:
       - 6379:6379
 
@@ -52,6 +60,7 @@ services:
       SRH_CONNECTION_STRING: redis://redis:6379
     depends_on:
       - redis
+    mem_limit: 64m
     ports:
       - 8079:80
 

@@ -15,6 +15,7 @@ import { getGroupOrThrow } from "../groups/get-group-or-throw";
 import { createOrGetProgramEnrollment } from "./create-or-get-program-enrollment";
 import { createPartnerDefaultLinks } from "./create-partner-default-links";
 import { getOrCreatePartner } from "./get-or-create-partner";
+import { getOrCreateReferralCode } from "./get-or-create-referral-code";
 import { queuePartnerSearchSync } from "./queue-partner-search-sync";
 import { throwIfExistingTenantEnrollmentExists } from "./throw-if-existing-tenant-id-exists";
 
@@ -172,17 +173,34 @@ export const createAndEnrollPartner = async ({
   });
 
   if (!created) {
+    const referralCode = await getOrCreateReferralCode({
+      programEnrollment,
+      partner: programEnrollment.partner,
+    });
+
     return EnrolledPartnerSchema.parse({
       ...programEnrollment.partner,
       ...programEnrollment,
       id: programEnrollment.partner.id,
       links: programEnrollment.links,
+      referralCode,
       ...polyfillSocialMediaFields(programEnrollment.partner.platforms),
     });
   }
 
   // Queue an index update because a new enrollment was created.
   waitUntil(queuePartnerSearchSync({ enrollmentIds: [programEnrollment.id] }));
+
+  // Every partner gets a referral code immediately, independent of their
+  // link/QR code, so it can be handed out and redeemed via /api/track/referral.
+  const referralCode = await getOrCreateReferralCode({
+    programEnrollment,
+    partner: {
+      username: partner.username,
+      name: partner.name,
+      email: partner.email,
+    },
+  });
 
   // Create the partner links based on group defaults
   const links = await createPartnerDefaultLinks({
@@ -214,6 +232,7 @@ export const createAndEnrollPartner = async ({
     ...programEnrollment,
     id: programEnrollment.partner.id,
     links,
+    referralCode,
     ...polyfillSocialMediaFields(programEnrollment.partner.platforms),
   });
 

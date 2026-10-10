@@ -148,6 +148,12 @@ export const ProgramEnrollmentSchema = z.object({
     .describe(
       "The partner's unique ID within your database. Can be useful for associating the partner with a user in your database and retrieving/update their data in the future.",
     ),
+  referralCode: z
+    .string()
+    .nullable()
+    .describe(
+      "The partner's referral code. Unlike the partner's link or QR code, this is a bare code your own system can accept directly (e.g. at signup or checkout) to attribute a referral — see POST /api/track/referral.",
+    ),
   program: ProgramSchema,
   createdAt: z.date(),
   status: z
