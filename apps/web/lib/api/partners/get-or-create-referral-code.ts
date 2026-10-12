@@ -10,9 +10,9 @@ function deriveReferralCode({
 }: {
   username?: string | null;
   name?: string | null;
-  email: string;
+  email: string | null;
 }) {
-  const base = username || name || email.split("@")[0];
+  const base = username || name || email?.split("@")[0] || "PARTNER";
   const slug = slugify(base, { separator: "" }).toUpperCase().slice(0, 20);
   return slug || "PARTNER";
 }
@@ -26,7 +26,11 @@ export async function getOrCreateReferralCode({
   partner,
 }: {
   programEnrollment: Pick<ProgramEnrollment, "id" | "referralCode">;
-  partner: { username?: string | null; name?: string | null; email: string };
+  partner: {
+    username?: string | null;
+    name?: string | null;
+    email: string | null;
+  };
 }): Promise<string> {
   if (programEnrollment.referralCode) {
     return programEnrollment.referralCode;
