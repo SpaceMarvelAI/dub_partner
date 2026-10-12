@@ -11,7 +11,7 @@ export const LinkBuilderReferralCode = memo(() => {
   const { control } = useFormContext<LinkFormData>();
   const [key] = useWatch({ control, name: ["key"] });
 
-  const referralCode = key ? key.toUpperCase() : "";
+  const referralCode = typeof key === "string" ? key.toUpperCase() : "";
 
   return (
     <div>

@@ -49,8 +49,6 @@ services:
   redis:
     image: redis:7-alpine
     mem_limit: 128m
-    ports:
-      - 6379:6379
 
   srh:
     image: hiett/serverless-redis-http:latest

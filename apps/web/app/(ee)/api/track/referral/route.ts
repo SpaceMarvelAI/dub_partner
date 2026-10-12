@@ -5,6 +5,7 @@ import { parseRequestBody } from "@/lib/api/utils";
 import { withWorkspace } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { recordClick } from "@/lib/tinybird";
+import { COMMISSION_ELIGIBLE_ENROLLMENT_STATUSES } from "@/lib/zod/schemas/partners";
 import { trackLeadRequestSchema } from "@/lib/zod/schemas/leads";
 import { trackSaleRequestSchema } from "@/lib/zod/schemas/sales";
 import { nanoid } from "@dub/utils";
@@ -28,6 +29,27 @@ const trackReferralSchema = z.object({
 // POST /api/track/referral – Attribute a click, lead, or sale to a partner by
 // their bare referral code (e.g. entered in your own app), without requiring
 // the user to have clicked the partner's dub.sh short link/QR code first.
+//
+// Cross-repo integration contract (e.g. for spacemarvel_dashboard's checkout):
+//   POST https://<this-deployment>/api/track/referral?workspaceId=<workspaceId>
+//   Authorization: Bearer <dub_... workspace API key>
+//   Content-Type: application/json
+//   {
+//     "referralCode": "<code the customer entered at checkout>",
+//     "event": "sale",
+//     "customerExternalId": "<your internal customer/user id>",
+//     "amount": 1999,           // in cents
+//     "currency": "usd",
+//     "invoiceId": "<your invoice/order id>",  // idempotency key — safe to retry
+//     "paymentProcessor": "stripe" // or "custom", etc.
+//   }
+// Call this only AFTER payment has actually succeeded. A code belonging to a
+// partner who isn't approved/archived/invited (banned, deactivated, declined,
+// pending) is rejected with 404, same as an unknown code. On success, Dub
+// records the sale and — if the partner's group has a sale reward configured —
+// creates a Commission, which the SpaceMarvel team reviews and pays out
+// manually from Program > Commissions in this app. This endpoint does not
+// move any money itself.
 export const POST = withWorkspace(
   async ({ req, workspace }) => {
     const body = await parseRequestBody(req);
@@ -37,6 +59,7 @@ export const POST = withWorkspace(
       where: {
         referralCode,
         program: { workspaceId: workspace.id },
+        status: { in: COMMISSION_ELIGIBLE_ENROLLMENT_STATUSES },
       },
       include: {
         links: {
