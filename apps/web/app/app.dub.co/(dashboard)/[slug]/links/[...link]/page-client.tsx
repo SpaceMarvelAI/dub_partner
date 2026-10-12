@@ -7,6 +7,7 @@ import { ExpandedLinkProps } from "@/lib/types";
 import { LinkAnalyticsBadge } from "@/ui/links/link-analytics-badge";
 import { LinkBuilderDestinationUrlInput } from "@/ui/links/link-builder/controls/link-builder-destination-url-input";
 import { LinkBuilderFolderSelector } from "@/ui/links/link-builder/controls/link-builder-folder-selector";
+import { LinkBuilderReferralCode } from "@/ui/links/link-builder/controls/link-builder-referral-code";
 import { LinkBuilderShortLinkInput } from "@/ui/links/link-builder/controls/link-builder-short-link-input";
 import { LinkCommentsInput } from "@/ui/links/link-builder/controls/link-comments-input";
 import { ConversionTrackingToggle } from "@/ui/links/link-builder/conversion-tracking-toggle";
@@ -222,6 +223,8 @@ function LinkBuilder({ link }: { link: ExpandedLinkProps }) {
             <LinkBuilderDestinationUrlInput />
 
             <LinkBuilderShortLinkInput />
+
+            <LinkBuilderReferralCode />
 
             <TagSelect />
 

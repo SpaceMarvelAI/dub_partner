@@ -24,6 +24,7 @@ import {
   Trophy,
 } from "@dub/ui";
 import {
+  Code,
   TriangleWarning,
   UserArrowRight,
   Users,
@@ -199,6 +200,27 @@ export function PartnerInfoCards({
           ? { timestamp: partner.payoutsEnabledAt }
           : {}),
       },
+      // Referral code (bare code for attribution without a link click)
+      ...(isEnrolled && partner.referralCode
+        ? [
+            {
+              id: "referralCode",
+              icon: <Code className="size-3.5 shrink-0" />,
+              text: (
+                <span className="flex items-center gap-1">
+                  {partner.referralCode}
+                  <CopyButton
+                    value={partner.referralCode}
+                    variant="neutral"
+                    className="p-1 [&>*]:h-3 [&>*]:w-3"
+                    successMessage="Copied referral code to clipboard!"
+                  />
+                </span>
+              ),
+            },
+          ]
+        : []),
+
       // TODO: once more partners verify their identity, we can show this by default
       ...(partner.identityVerifiedAt
         ? [

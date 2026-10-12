@@ -35,6 +35,7 @@ import { SearchBoxPersisted } from "@/ui/shared/search-box";
 import {
   AnimatedSizeContainer,
   Button,
+  CopyButton,
   DynamicTooltipWrapper,
   EditColumnsButton,
   Filter,
@@ -85,6 +86,7 @@ const partnersColumns = {
   all: [
     "partner",
     "group",
+    "referralCode",
     "tags",
     "createdAt",
     "status",
@@ -106,6 +108,7 @@ const partnersColumns = {
   defaultVisible: [
     "partner",
     "group",
+    "referralCode",
     "tags",
     "location",
     "totalClicks",
@@ -258,6 +261,30 @@ export function PartnersTable() {
               </div>
             );
           },
+        },
+        {
+          id: "referralCode",
+          header: "Referral code",
+          meta: {
+            headerTooltip:
+              "The partner's bare referral code, for attribution without a link click.",
+          },
+          cell: ({ row }) =>
+            row.original.referralCode ? (
+              <div className="flex items-center gap-1">
+                <span className="truncate font-mono text-xs">
+                  {row.original.referralCode}
+                </span>
+                <CopyButton
+                  value={row.original.referralCode}
+                  variant="neutral"
+                  className="p-1 [&>*]:h-3 [&>*]:w-3"
+                  successMessage="Copied referral code to clipboard!"
+                />
+              </div>
+            ) : (
+              "-"
+            ),
         },
         {
           id: "tags",
