@@ -20,7 +20,12 @@ class StorageClient {
       accessKeyId: process.env.STORAGE_ACCESS_KEY_ID || "",
       secretAccessKey: process.env.STORAGE_SECRET_ACCESS_KEY || "",
       service: "s3",
-      region: "auto",
+      // "auto" is the Cloudflare R2 convention (its S3-compatible API ignores region
+      // in the signature). Real AWS S3 rejects "auto" outright — signing a request
+      // against an S3 bucket fails with AuthorizationQueryParametersError unless this
+      // matches the bucket's actual region. STORAGE_REGION lets a deployment on real
+      // S3 (e.g. spacemarvel-affiliate in ap-south-1) override the R2 default.
+      region: process.env.STORAGE_REGION || "auto",
     });
   }
 

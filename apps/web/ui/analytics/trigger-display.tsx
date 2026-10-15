@@ -1,4 +1,4 @@
-import { CursorRays, MarketingTarget, Page2, QRCode } from "@dub/ui";
+import { CursorRays, MarketingTarget, Page2, QRCode, Tag } from "@dub/ui";
 
 export const TRIGGER_DISPLAY = {
   qr: {
@@ -16,5 +16,12 @@ export const TRIGGER_DISPLAY = {
   deeplink: {
     title: "Deep Link",
     icon: MarketingTarget,
+  },
+  // Set by POST /api/track/referral (apps/web/app/(ee)/api/track/referral/route.ts)
+  // when a partner's referral code is entered directly in another app's checkout,
+  // without the customer ever clicking the partner's dub.sh link/QR code.
+  referral_code: {
+    title: "Referral code",
+    icon: Tag,
   },
 };
